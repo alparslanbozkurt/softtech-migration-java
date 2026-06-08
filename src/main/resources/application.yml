@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: demo
+
+  # Database configuration for local MySQL
+  datasource:
+    url: jdbc:mysql://localhost:3306/open_banking_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Run schema.sql initialization automatically on startup to build open_banking_transactions table
+  sql:
+    init:
+      mode: always
+
+  # Kafka configuration for localhost
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Use JSON serializer to automatically serialize PaymentEvent objects
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: open-banking-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Use JSON deserializer to automatically deserialize into PaymentEvent objects
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # Trust our DTO package for deserialization of events
+        spring.json.trusted.packages: "com.example.demo.dto"
+    listener:
+      ack-mode: record
+
+  # Redis configuration for localhost
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000
+
+# Logging settings for monitoring output
+logging:
+  level:
+    root: INFO
+    com.example.demo: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.data.redis: INFO

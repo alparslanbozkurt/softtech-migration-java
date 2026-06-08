@@ -1,0 +1,126 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.14'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	lombokVersion = '1.18.44'
+	mysqlConnectorVersion = '9.6.0' // Eğer properties'den gelmiyorsa varsayılan bir sürüm
+	springBootVersion = '3.5.14'
+}
+
+dependencies {
+
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.apache.kafka:kafka-streams'
+	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.springframework.session:spring-session-data-redis'
+	implementation 'org.springframework.session:spring-session-hazelcast'
+	implementation 'org.springframework.session:spring-session-jdbc'
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'org.springframework.batch:spring-batch-test'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+
+	// ==========================================
+	// SOFTTECH LİSTESİNDEN EKLENENLER (Sürümleriyle Birlikte)
+	// ==========================================
+
+	// Commons & I/O
+	implementation 'org.apache.commons:commons-lang3:3.18.0'
+	implementation group: 'org.apache.commons', name: 'commons-fileupload2-jakarta', version: '2.0.0-M1'
+	implementation 'commons-io:commons-io:2.15.1'
+
+	// Veritabanı ve Sürücüler
+	implementation "org.apache.derby:derby:10.17.1.0"
+	implementation "com.mysql:mysql-connector-j:${mysqlConnectorVersion}"
+
+	// Mentor hem ojdbc8 hem ojdbc6 vermiş, Java 17 için modern olanı (senin de kullandığın ojdbc11 formatına yakın) tutuyoruz.
+	implementation(group: 'com.oracle.database.jdbc', name: 'ojdbc8', version: '23.2.0.0')
+	implementation(group: 'com.oracle.database.nls', name: 'orai18n', version: '23.2.0.0')
+
+	// XML, JSON ve Serileştirme
+	implementation 'com.sun.xml.ws:jaxws-ri:2.3.3'
+	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+	implementation 'com.google.code.gson:gson:2.13.1'
+	implementation group: 'com.thoughtworks.xstream', name: 'xstream', version: '1.4.16'
+
+	// HTTP İstemcileri
+	implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+	implementation 'com.squareup.retrofit2:retrofit:2.3.0'
+
+	// Kimlik Doğrulama
+	implementation group: 'org.keycloak', name: 'keycloak-core', version: '18.0.0'
+
+	// Spring Boot Ekstralar ve Cache
+	implementation ("org.springframework.boot:spring-boot-starter-web-services:$springBootVersion") {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+	}
+	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-cache'
+	implementation group: 'org.springframework.data', name: 'spring-data-redis', version: '2.4.2'
+	implementation group: 'io.lettuce', name: 'lettuce-core', version: '6.0.2.RELEASE'
+	implementation group: 'com.hazelcast', name: 'hazelcast', version: '5.5.0'
+
+	// Kryo
+	implementation group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
+	implementation group: 'com.esotericsoftware', name: 'kryo-parent', version: '4.0.2', ext: 'pom'
+	implementation group: 'de.javakaffee', name: 'kryo-serializers', version: '0.42'
+
+	// Özel İstemciler (Rally)
+	//implementation group: 'rally.openapi', name: 'tppaspspbank-client', version: '0.2.18'
+	//testImplementation group: 'rally.openapi', name: 'tppaspspbank-client', version: '0.2.18'
+	//implementation group: 'rally.openapi', name: 'tppaccountbkmretriever-client', version: '0.1.67'
+
+	// ==========================================
+	// LOMBOK & MAPSTRUCT
+	// ==========================================
+	compileOnly("org.projectlombok:lombok:${lombokVersion}")
+	testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
+	annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+	testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+
+	implementation 'org.mapstruct:mapstruct:1.4.1.Final'
+	annotationProcessor 'org.mapstruct:mapstruct-processor:1.4.1.Final'
+
+	// ==========================================
+	// TEST BAĞIMLILIKLARI
+	// ==========================================
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'org.springframework.batch:spring-batch-test'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// Groovy dışlaması
+configurations.all {
+	exclude group: 'org.codehaus.groovy', module: 'groovy'
+}
