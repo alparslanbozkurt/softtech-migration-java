@@ -5,17 +5,28 @@ spring:
   application:
     name: demo
 
-  # Database configuration for local MySQL
+  # Database configurations - Migrated from Oracle to MSSQL
   datasource:
-    url: jdbc:mysql://localhost:3306/open_banking_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: root
-    password: root
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    # oracle:
+    #   jdbc-url: jdbc:oracle:thin:@localhost:1521/FREE
+    #   username: openbanking
+    #   password: openbanking
+    #   driver-class-name: oracle.jdbc.OracleDriver
+    # mssql:
+    #   jdbc-url: jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=false;trustServerCertificate=true
+    #   username: sa
+    #   password: YourStrong@Pass123
+    #   driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    url: jdbc:sqlserver://localhost:1433;databaseName=demoDB;encrypt=true;trustServerCertificate=true;
+    username: sa
+    password: YourStrong@Pass123
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
-  # Run schema.sql initialization automatically on startup to build open_banking_transactions table
-  sql:
-    init:
-      mode: always
+  jpa:
+    database-platform: org.hibernate.dialect.SQLServerDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
 
   # Kafka configuration for localhost
   kafka:
@@ -42,6 +53,13 @@ spring:
       port: 6379
       timeout: 2000
 
+  # Spring Batch configurations
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
+
 # Logging settings for monitoring output
 logging:
   level:
@@ -49,3 +67,9 @@ logging:
     com.example.demo: DEBUG
     org.springframework.kafka: INFO
     org.springframework.data.redis: INFO
+    org.springframework.batch: INFO
+
+fixedDelayForApigwToken:
+  in:
+    milliseconds: 5000
+

@@ -9,7 +9,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -36,7 +36,8 @@ dependencies {
 	implementation 'org.springframework.session:spring-session-jdbc'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
-	runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
+	// runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
+	runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
@@ -60,8 +61,8 @@ dependencies {
 	implementation "com.mysql:mysql-connector-j:${mysqlConnectorVersion}"
 
 	// Mentor hem ojdbc8 hem ojdbc6 vermiş, Java 17 için modern olanı (senin de kullandığın ojdbc11 formatına yakın) tutuyoruz.
-	implementation(group: 'com.oracle.database.jdbc', name: 'ojdbc8', version: '23.2.0.0')
-	implementation(group: 'com.oracle.database.nls', name: 'orai18n', version: '23.2.0.0')
+	// implementation(group: 'com.oracle.database.jdbc', name: 'ojdbc8', version: '23.2.0.0')
+	// implementation(group: 'com.oracle.database.nls', name: 'orai18n', version: '23.2.0.0')
 
 	// XML, JSON ve Serileştirme
 	implementation 'com.sun.xml.ws:jaxws-ri:2.3.3'

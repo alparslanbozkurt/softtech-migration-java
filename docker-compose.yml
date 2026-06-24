@@ -31,11 +31,21 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@demo-kafka:29093'
       CLUSTER_ID: 'demo-cluster-12345'
 
-  mysql:
-    image: mysql:8.0
-    container_name: demo-mysql
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: demo-oracle
     ports:
-      - "3306:3306"
+      - "1521:1521"
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: openbanking_db
+      - ORACLE_PASSWORD=oracle
+      - APP_USER=openbanking
+      - APP_PASSWORD=openbanking
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: demo-mssql
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Pass123

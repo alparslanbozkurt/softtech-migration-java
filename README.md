@@ -1,4 +1,4 @@
-# Open Banking Payment Initiation Demo (Spring Boot, Kafka, Redis & MySQL)
+# Open Banking Payment Initiation Demo (Spring Boot, Kafka, Redis, Oracle & MSSQL)
 
 Bu proje, bir bankanın Açık Bankacılık (Open Banking) "Ödeme Başlatma" (Payment Initiation) akışını simüle eden, asenkron ve event-driven mimarili bir Spring Boot uygulamasıdır.
 
@@ -8,24 +8,28 @@ Bu proje, bir bankanın Açık Bankacılık (Open Banking) "Ödeme Başlatma" (P
 
 1. **REST API**: İstemci `POST /api/v1/payments` ucuna ödeme başlatma isteği (Gönderen IBAN, Alıcı IBAN, Tutar vb.) gönderir.
 2. **UUID Üretimi**: Servis katmanında işlem için benzersiz bir `transactionUuid` (UUID) oluşturulur.
-3. **MySQL DB**: İşlem, Spring `JdbcTemplate` kullanılarak MySQL veritabanındaki `open_banking_transactions` tablosuna **PENDING** statüsünde kaydedilir.
+3. **Oracle & MSSQL DB (Dual Write)**: İşlem, Spring `JdbcTemplate` kullanılarak hem **Oracle** hem de **MSSQL** veritabanlarındaki `open_banking_transactions` tablosuna **PENDING** statüsünde kaydedilir.
 4. **Redis Cache**: İşlemin güncel durumu UUID anahtarı ile Redis'e yazılır (TTL: 10 dakika).
 5. **Kafka Event**: İşlem detayı `payment-events` Kafka konusuna asenkron ve non-blocking olarak fırlatılır.
 6. **HTTP 202 Accepted**: İstemciye hemen yanıt dönülerek UUID ve PENDING statüsü teslim edilir.
 7. **Kafka Tüketici**: `PaymentConsumer` mesajı yakalar:
    - **BkmMockService**'i çağırır. Bu servis BKM entegrasyonunu simüle ederek 1.5 saniye ağ gecikmesi yaşatır ve rastgele %80 başarı (APPROVED) ya da %20 ret (REJECTED) üretir.
-   - BKM'den dönen sonuca göre veritabanındaki ilgili kaydın statüsünü günceller.
+   - BKM'den dönen sonuca göre hem **Oracle** hem de **MSSQL** veritabanlarındaki ilgili kaydın statüsünü günceller (Dual Update).
    - Redis'teki durumu güncelleyerek TTL'i yeniler.
+8. **Mutabakat Yığın İşlemi (Spring Batch)**: 
+   - Durumu `APPROVED` veya `REJECTED` olan tamamlanmış işlemler, zamanlanmış veya manuel tetiklenen Spring Batch işi (`transactionReconciliationJob`) ile işlenir.
+   - Bu işlemler mutabık kılınarak durumları veritabanında `RECONCILED` olarak güncellenir ve kök dizindeki `reconciled_transactions.csv` dosyasına yazılır.
 
 ---
 
 ## 🛠️ Teknolojiler ve Bağımlılıklar
 
-* **Java 17**
-* **Spring Boot 3.5.x**
+* **Java 17 / 21**
+* **Spring Boot**
 * **Spring Kafka**
 * **Spring Data Redis (Lettuce Client)**
-* **MySQL Connector / Spring JDBC (JdbcTemplate)**
+* **Oracle JDBC (ojdbc) & MSSQL JDBC (mssql-jdbc)**
+* **Spring JDBC (Dual JdbcTemplate)**
 * **Lombok**
 * **Jakarta Validation API**
 
@@ -34,41 +38,64 @@ Bu proje, bir bankanın Açık Bankacılık (Open Banking) "Ödeme Başlatma" (P
 ## 📁 Proje Yapısı
 
 ```text
-src/main/java/com/example/demo/
-├── DemoApplication.java          # Spring Boot Başlangıç Sınıfı
-├── config/
-│   ├── KafkaConfig.java          # Kafka Topic (payment-events) otomatik oluşturma
-│   └── RedisConfig.java          # RedisTemplate Yapılandırması
-├── consumer/
-│   └── PaymentConsumer.java      # Kafka Event Consumer (BKM çağrısı & durum güncelleme)
-├── controller/
-│   └── PaymentController.java    # REST API (/api/v1/payments)
-├── dto/
-│   ├── PaymentEvent.java         # Kafka Event Payload Modeli
-│   ├── PaymentRequest.java       # Ödeme Başlatma Request Modeli ve IBAN validasyonu
-│   └── PaymentResponse.java      # Ödeme Başlatma Response Modeli (UUID & Status)
-├── model/
-│   └── Transaction.java          # Veritabanı Varlık Modeli
-├── repository/
-│   └── TransactionRepository.java # JdbcTemplate ile MySQL veri erişim katmanı
-└── service/
-    ├── BkmMockService.java       # BKM API Mock Servisi (%80 success / 1.5s delay)
-    └── PaymentService.java       # Ödeme Başlatma İş Mantığı
+src/
+├── main/java/com/example/demo/
+│   ├── DemoApplication.java           # Spring Boot Başlangıç Sınıfı
+│   ├── config/
+│   │   ├── BatchConfig.java           # Spring Batch İş ve Adım (Job & Step) Konfigürasyonu
+│   │   ├── KafkaConfig.java           # Kafka Topic (payment-events) otomatik oluşturma
+│   │   └── RedisConfig.java           # RedisTemplate Yapılandırması
+│   ├── consumer/
+│   │   └── PaymentConsumer.java       # Kafka Event Consumer (BKM çağrısı & durum güncelleme)
+│   ├── controller/
+│   │   ├── BatchController.java       # Batch Manuel Tetikleme Endpoint'i (/api/v1/batch/run)
+│   │   └── PaymentController.java     # Ödeme Başlatma REST API (/api/v1/payments)
+│   ├── dto/
+│   │   ├── PaymentEvent.java          # Kafka Event Payload Modeli
+│   │   ├── PaymentRequest.java        # Ödeme Başlatma Request Modeli ve IBAN validasyonu
+│   │   └── PaymentResponse.java       # Ödeme Başlatma Response Modeli (UUID & Status)
+│   ├── model/
+│   │   └── Transaction.java           # Veritabanı Varlık Modeli
+│   ├── repository/
+│   │   └── TransactionRepository.java  # JdbcTemplate ile MSSQL DB veri erişim katmanı
+│   └── service/
+│       ├── ApigwTokenSchedulerService.java # Mock API Gateway Token Güncelleyici Scheduler
+│       ├── BatchSchedulerService.java # Batch Mutabakat İşini Zamanlayan Servis
+│       ├── BkmMockService.java        # BKM API Mock Servisi (%80 success / 1.5s delay)
+│       └── PaymentService.java        # Ödeme Başlatma İş Mantığı
+└── test/java/com/example/demo/
+    ├── DemoApplicationTests.java      # Context Yükleme Testi
+    ├── config/
+    │   └── TransactionReconciliationJobTest.java # Spring Batch Mutabakat Testi
+    └── service/
+        └── ApigwTokenSchedulerServiceTest.java # Token Scheduler Testi
 ```
 
 ---
 
-## 🗄️ Veritabanı Şeması (schema.sql)
+## 🗄️ Veritabanı Şeması (Otomatik Başlatma)
 
-Uygulama `src/main/resources/schema.sql` dosyasındaki DDL script'ini kullanarak `open_banking_transactions` tablosunu otomatik olarak oluşturur:
+Uygulama başlangıçta `DatabaseConfig` sınıfı üzerinden hem **Oracle** hem de **MSSQL** için şemaları otomatik olarak oluşturur. Dialect farklılıkleri nedeniyle aşağıdaki SQL ifadeleri kullanılır:
 
+* **Oracle SQL Şeması**:
 ```sql
-CREATE TABLE IF NOT EXISTS open_banking_transactions (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE open_banking_transactions (
+    id NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    transaction_uuid VARCHAR2(36) NOT NULL UNIQUE,
+    status VARCHAR2(20) NOT NULL,
+    amount NUMBER(15, 2) NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+```
+
+* **MSSQL SQL Şeması**:
+```sql
+CREATE TABLE open_banking_transactions (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
     transaction_uuid VARCHAR(36) NOT NULL UNIQUE,
     status VARCHAR(20) NOT NULL,
     amount DECIMAL(15, 2) NOT NULL,
-    created_at TIMESTAMP NOT NULL
+    created_at DATETIME2 NOT NULL
 );
 ```
 
@@ -76,29 +103,12 @@ CREATE TABLE IF NOT EXISTS open_banking_transactions (
 
 ## 💻 Kurulum ve Çalıştırma
 
-### 1. MySQL, Redis ve Kafka'yı Başlatma (Docker)
+### 1. Altyapıyı Başlatma (Docker Compose)
 
-Yerel ortamınızda altyapıyı hızlıca başlatmak için aşağıdaki Docker komutlarını kullanabilirsiniz:
+Yerel ortamınızda tüm altyapıyı (Oracle, MSSQL, Redis, Kafka ve Zookeeper) tek bir komutla başlatmak için Docker Compose kullanabilirsiniz:
 
 ```bash
-# MySQL'i Başlat
-docker run -d --name local-mysql -e MYSQL_DATABASE=open_banking_db -e MYSQL_ROOT_PASSWORD=password -p 3306:3306 mysql:latest
-
-# Redis'i Başlat
-docker run -d --name local-redis -p 6379:6379 redis:alpine
-
-# Kafka'yı Başlat (KRaft Modunda)
-docker run -d --name local-kafka -p 9092:9092 \
-  -e KAFKA_ENABLE_KRAFT=yes \
-  -e KAFKA_CFG_PROCESS_ROLES=broker,controller \
-  -e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
-  -e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
-  -e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
-  -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-  -e KAFKA_CFG_BROKER_ID=1 \
-  -e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9093 \
-  -e ALLOW_PLAINTEXT_LISTENER=yes \
-  bitnami/kafka:latest
+docker compose up -d
 ```
 
 ### 2. Uygulamayı Derleme ve Çalıştırma
@@ -170,11 +180,17 @@ INFO  c.e.d.c.PaymentConsumer   : Redis cache updated successfully. Key: 9c148e2
 
 ### 3. Veritabanı ve Redis Sorgulama
 
-* **MySQL Veritabanı**:
-  ```sql
-  mysql -h localhost -P 3306 -u root -ppassword
-  USE open_banking_db;
-  SELECT * FROM open_banking_transactions;
+* **Oracle Veritabanı**:
+  ```bash
+  # Sqlplus ile bağlanıp sorgulama
+  docker exec -it demo-oracle sqlplus openbanking/openbanking@//localhost:1521/FREE
+  # SQL: SELECT * FROM open_banking_transactions;
+  ```
+
+* **MSSQL Veritabanı**:
+  ```bash
+  # sqlcmd ile bağlanıp sorgulama
+  docker exec -it demo-mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Pass123 -d demoDB -Q "SELECT * FROM open_banking_transactions;"
   ```
 
 * **Redis**:
@@ -182,4 +198,49 @@ INFO  c.e.d.c.PaymentConsumer   : Redis cache updated successfully. Key: 9c148e2
   redis-cli
   GET 9c148e24-ff9a-4c28-98e3-51887e382d5a
   # "APPROVED" veya "REJECTED" değerini döndürecektir.
+  ```
+
+---
+
+## 🔄 Batch Servisinin Manuel Test Edilmesi
+
+Batch servisinin çalışıp çalışmadığını aşağıdaki adımlarla manuel olarak test edebilirsiniz:
+
+### 1. Test Verisi Oluşturma (Ödeme Talebi Gönderme)
+Önce veritabanına Batch tarafından işlenebilecek (durumu `APPROVED` veya `REJECTED` olan) işlemler eklemek için cURL ile bir ödeme başlatın:
+```bash
+curl -X POST http://localhost:8080/api/v1/payments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "senderIban": "TR123456789012345678901234",
+    "receiverIban": "TR987654321098765432109876",
+    "amount": 1500.00,
+    "currency": "TRY",
+    "description": "Fatura Odemesi"
+  }'
+```
+
+### 2. Durumu Veritabanından Kontrol Etme
+İşlemin Kafka Consumer ve BkmMockService tarafından işlenip durumunun `APPROVED` veya `REJECTED` yapıldığını doğrulamak için veritabanını sorgulayın:
+```bash
+docker exec -it demo-mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Pass123 -d demoDB -Q "SELECT transaction_uuid, status, amount FROM open_banking_transactions;"
+```
+
+### 3. Batch İşini (Job) Çalıştırma
+Batch işinin mutabakat yapmasını iki yolla tetikleyebilirsiniz:
+* **Otomatik (Zamanlayıcı):** Uygulama açık olduğu sürece her 30 saniyede bir `BatchSchedulerService` arka planda çalışarak mutabakatı tetikler.
+* **Manuel (REST API):** Batch'i hemen çalıştırmak için şu POST isteğini gönderin:
+  ```bash
+  curl -X POST http://localhost:8080/api/v1/batch/run
+  ```
+  Başarılı çalıştığında size `"Batch job started. Current Status: COMPLETED"` yanıtı dönecektir.
+
+### 4. Sonuçları Doğrulama
+* **Veritabanı Güncellemesi:** Veritabanındaki ilgili işlemin durumunun `RECONCILED` yapıldığını doğrulayın:
+  ```bash
+  docker exec -it demo-mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Pass123 -d demoDB -Q "SELECT transaction_uuid, status FROM open_banking_transactions;"
+  ```
+* **CSV Çıktısı Kontrolü:** Projenin kök dizininde `reconciled_transactions.csv` dosyasının oluştuğunu ve içinde mutabık kalınan işlemlerin yazıldığını kontrol edin:
+  ```bash
+  cat reconciled_transactions.csv
   ```
