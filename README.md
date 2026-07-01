@@ -178,26 +178,44 @@ INFO  c.e.d.r.TransactionRepository : Successfully updated transaction in DB. UU
 INFO  c.e.d.c.PaymentConsumer   : Redis cache updated successfully. Key: 9c148e24-ff9a-4c28-98e3-51887e382d5a, New Status: APPROVED
 ```
 
-### 3. Veritabanı ve Redis Sorgulama
+### 3. Veritabanı, Redis ve Kafka İzleme (CLI & Web UI)
 
-* **Oracle Veritabanı**:
+#### 🌐 Web Arayüzleri (Web UI)
+* **Kafka UI:** [http://localhost:8089](http://localhost:8089)
+  * `payment-events` konusuna (topic) düşen mesajları ve consumer durumlarını görsel olarak takip edebilirsiniz.
+* **Redis Commander:** [http://localhost:8081](http://localhost:8081)
+  * `db0` altındaki transaction UUID anahtarlarını, durumlarını (PENDING, APPROVED, REJECTED) ve kalan TTL sürelerini görebilirsiniz.
+
+#### 🪵 Docker Container Logları
+Konteynerlerin sistem loglarını canlı izlemek için:
+```bash
+# Kafka logları
+docker logs -f demo-kafka
+
+# Redis logları
+docker logs -f demo-redis
+```
+
+#### 🔄 Canlı İstek ve Veri İzleme (CLI)
+* **Canlı Redis İstekleri:** İstek atıldığında Redis'e gelen komutları anlık yakalamak için:
   ```bash
-  # Sqlplus ile bağlanıp sorgulama
-  docker exec -it demo-oracle sqlplus openbanking/openbanking@//localhost:1521/FREE
-  # SQL: SELECT * FROM open_banking_transactions;
+  docker exec -it demo-redis redis-cli MONITOR
+  ```
+* **Canlı Kafka Mesajları:** `payment-events` konusuna atılan mesajları terminalden dinlemek için:
+  ```bash
+  docker exec -it demo-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic payment-events --from-beginning
   ```
 
-* **MSSQL Veritabanı**:
+#### 🗄️ Veritabanı ve Redis Sorgulama
+* **MSSQL Veritabanı:**
   ```bash
-  # sqlcmd ile bağlanıp sorgulama
-  docker exec -it demo-mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Pass123 -d demoDB -Q "SELECT * FROM open_banking_transactions;"
-  ```
+  docker exec -it demo-mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Pass123 -d demoDB -Q "SELECT * FROM open_banking_transactions;" -C
 
-* **Redis**:
+  ```
+* **Redis CLI (Manuel Sorgulama):**
   ```bash
-  redis-cli
-  GET 9c148e24-ff9a-4c28-98e3-51887e382d5a
-  # "APPROVED" veya "REJECTED" değerini döndürecektir.
+  docker exec -it demo-redis redis-cli
+  # Sorgulamak için: GET <transaction_uuid>
   ```
 
 ---

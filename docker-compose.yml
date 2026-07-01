@@ -30,6 +30,9 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@demo-kafka:29093'
       CLUSTER_ID: 'demo-cluster-12345'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
   oracle:
     image: gvenzl/oracle-free:23-slim
@@ -49,3 +52,24 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=YourStrong@Pass123
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: demo-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: demo-kafka-ui
+    ports:
+      - "8089:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: demo-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: demo-kafka:29092
+    depends_on:
+      - kafka
