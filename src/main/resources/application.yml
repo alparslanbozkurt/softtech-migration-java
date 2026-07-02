@@ -5,28 +5,18 @@ spring:
   application:
     name: demo
 
-  # Database configurations - Migrated from Oracle to MSSQL
+  # Database configurations - Dual DataSource (MSSQL + Oracle)
   datasource:
-    # oracle:
-    #   jdbc-url: jdbc:oracle:thin:@localhost:1521/FREE
-    #   username: openbanking
-    #   password: openbanking
-    #   driver-class-name: oracle.jdbc.OracleDriver
-    # mssql:
-    #   jdbc-url: jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=false;trustServerCertificate=true
-    #   username: sa
-    #   password: YourStrong@Pass123
-    #   driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-    url: jdbc:sqlserver://localhost:1433;databaseName=demoDB;encrypt=true;trustServerCertificate=true;
-    username: sa
-    password: YourStrong@Pass123
-    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-
-  jpa:
-    database-platform: org.hibernate.dialect.SQLServerDialect
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.SQLServerDialect
+    mssql:
+      jdbc-url: jdbc:sqlserver://localhost:1433;databaseName=demoDB;encrypt=true;trustServerCertificate=true;
+      username: sa
+      password: YourStrong@Pass123
+      driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    oracle:
+      jdbc-url: jdbc:oracle:thin:@localhost:1521/FREE
+      username: openbanking
+      password: openbanking
+      driver-class-name: oracle.jdbc.OracleDriver
 
   # Kafka configuration for localhost
   kafka:
